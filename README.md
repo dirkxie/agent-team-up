@@ -27,7 +27,7 @@ A skill for spawning and coordinating multi-agent teams for parallel work. Built
 
 ```bash
 # Clone into your Claude Code skills directory
-git clone https://github.com/jyxie/agent-team-up.git ~/.claude/skills/team-up
+git clone https://github.com/dirkxie/agent-team-up.git ~/.claude/skills/team-up
 ```
 
 Or copy the files manually into `~/.claude/skills/team-up/`.
@@ -131,7 +131,7 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for 13 solved problems with detaile
 
 ```bash
 # 克隆到 Claude Code skills 目录
-git clone https://github.com/jyxie/agent-team-up.git ~/.claude/skills/team-up
+git clone https://github.com/dirkxie/agent-team-up.git ~/.claude/skills/team-up
 ```
 
 或手动复制文件到 `~/.claude/skills/team-up/`。
