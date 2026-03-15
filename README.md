@@ -3,6 +3,10 @@
 A skill for spawning and coordinating multi-agent teams for parallel work. Built for [Claude Code](https://claude.ai/code), designed to be agent-platform agnostic in the future.
 
 <p align="center">
+  <a href="#agent-team-up中文">📖 中文说明 / Chinese Docs</a>
+</p>
+
+<p align="center">
   <img src="assets/agent-team-up.gif" alt="agent-team-up animation" width="700"/>
 </p>
 
@@ -314,6 +318,10 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for 13 solved problems with detaile
 ---
 
 # agent-team-up（中文）
+
+<p align="center">
+  <a href="#agent-team-up">📖 English Docs / 英文说明</a>
+</p>
 
 一个用于启动和协调多 agent 团队并行工作的 skill。当前适配 [Claude Code](https://claude.ai/code)，未来计划支持更多 agent 平台。
 
