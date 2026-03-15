@@ -164,11 +164,11 @@ flowchart LR
 - **Quality gate hooks** — enforce linting, tests, or coverage checks when teammates finish tasks
 - **Self-claiming tasks** — agents autonomously pick up the next matching task after completing their assignment
 
-## Official Docs vs Our Innovations
+## Relationship to Official Documentation
 
-This skill fully implements the guidance from the [official Claude Code Agent Teams documentation](https://code.claude.com/docs/en/agent-teams), and adds significant innovations on top.
+This skill is an implementation of the [official Claude Code Agent Teams documentation](https://code.claude.com/docs/en/agent-teams). We follow the official guidance as the foundation, and supplement it with practical patterns learned from real-world usage.
 
-### Implemented from Official Docs
+### What We Implemented from the Official Docs
 
 | Feature | Description |
 |---------|-------------|
@@ -182,45 +182,45 @@ This skill fully implements the guidance from the [official Claude Code Agent Te
 | Known limitations | 8 official limitations documented (agent count, context windows, ephemeral state, etc.) |
 | Feature flag | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` environment variable |
 
-### Our Best Practices & Innovations (Beyond Official Docs)
+### What We Added in Practice
 
-The official docs provide **what tools are available** (API reference), but not **how to use them well**. We fill that gap with battle-tested best practices and structural innovations:
+The official docs describe the available tools and APIs. In practice, we found some additional patterns helpful for running stable, predictable agent teams:
 
 #### Workflow & Architecture
 
-| Best Practice | What the official docs lack |
-|---------------|----------------------------|
-| **Subagent Mode** | Official docs only describe Team mode. We add a lightweight alternative — no TeamCreate/TaskCreate overhead for simple parallel tasks. Includes when-to-use decision framework. |
-| **T0–T8 step-by-step workflow** | Official docs list APIs; we provide a sequenced playbook: preflight → create team → spawn → environment → monitor → recover → checkpoint → summarize → shutdown. |
-| **User permission rule** | Official docs don't mention user consent. We mandate asking the user before spawning or shutting down any agent. |
-| **Permission mode guide** | Official docs list modes but don't recommend. We compare `auto`/`plan`/`dontAsk`/`default`/`bypassPermissions` with clear recommendations: `auto` as default, `dontAsk` + worktree for max speed. |
+| Practice | What it supplements |
+|----------|---------------------|
+| **Subagent Mode** | A lightweight alternative for simple parallel tasks — no TeamCreate/TaskCreate overhead. Complements the official Team mode. |
+| **T0–T8 step-by-step workflow** | A sequenced playbook built on the official APIs: preflight → create team → spawn → environment → monitor → recover → checkpoint → summarize → shutdown. |
+| **User permission rule** | Adds a consent step: ask the user before spawning or shutting down any agent. |
+| **Permission mode guide** | Compares `auto`/`plan`/`dontAsk`/`default`/`bypassPermissions` with practical recommendations. |
 
 #### Reliability & Recovery
 
-| Best Practice | What the official docs lack |
-|---------------|----------------------------|
-| **Auto error recovery** | No recovery protocol in official docs. We provide 3-tier escalation: `Agent(resume=id)` → new agent with failure context → ask user. |
-| **Ghost agent prevention** | Official docs don't address replacement safety. We enforce 5-step cleanup (save work → close old agent → update progress → handle worktree → THEN replace) before spawning replacements. |
-| **"Check alive FIRST" protocol** | Official docs don't warn about messaging dead agents. We mandate `TaskOutput(block=false)` before any `SendMessage` — prevents infinite waits. |
-| **Health monitoring** | Official docs mention `TaskOutput` but provide no monitoring strategy. We add `CronCreate` periodic checks (every 3 min) + stuck agent detection criteria. |
-| **Progress checkpointing** | Official docs don't address crash recovery. We add persistent `.claude/teams/{name}/` directory with `progress.md`, `history.log`, `results/` — new agents pick up where things stopped. |
-| **Structured shutdown** | Official docs don't describe shutdown. We provide normal (summary → checkpoint → confirm → graceful shutdown → cleanup) and emergency protocols. |
+| Practice | What it supplements |
+|----------|---------------------|
+| **Auto error recovery** | 3-tier escalation: `Agent(resume=id)` → new agent with failure context → ask user. |
+| **Ghost agent prevention** | 5-step cleanup before spawning replacements — prevents duplicate agents on the same task. |
+| **"Check alive FIRST" protocol** | Always `TaskOutput(block=false)` before `SendMessage` — avoids sending messages to dead agents. |
+| **Health monitoring** | `CronCreate` periodic checks (every 3 min) + stuck agent detection criteria, built on `TaskOutput`. |
+| **Progress checkpointing** | Persistent `.claude/teams/{name}/` directory (`progress.md`, `history.log`, `results/`) for crash recovery. |
+| **Structured shutdown** | Normal and emergency shutdown protocols with checkpoint-before-close guarantees. |
 
 #### Agent Coordination
 
-| Best Practice | What the official docs lack |
-|---------------|----------------------------|
-| **Role-constrained self-claim** | Official docs say "self-claim" but don't address scope creep. We add: only within your role + file locking to prevent races. |
-| **Peer messaging rules** | Official docs mention `SendMessage` but not when to use it. We define: factual data → direct to peer; scope changes → through lead. |
-| **Multi-repo worktree isolation** | Official docs don't mention multi-repo. `isolation: "worktree"` only covers the startup repo — we add explicit `git worktree` setup for every additional repo. |
-| **Environment setup checklist** | Official docs note child agents don't inherit env, but don't provide a checklist. We list all required setup: venv, env vars, PATH, working dir, build commands, system tools. |
+| Practice | What it supplements |
+|----------|---------------------|
+| **Role-constrained self-claim** | Adds role filtering and file locking on top of the official self-claim mechanism. |
+| **Peer messaging rules** | Practical guidelines for `SendMessage`: factual data → direct to peer; scope changes → through lead. |
+| **Multi-repo worktree isolation** | Extends `isolation: "worktree"` with explicit `git worktree` setup for additional repos. |
+| **Environment setup checklist** | Concrete checklist for child agent env setup: venv, env vars, PATH, working dir, build commands, system tools. |
 
 #### Developer Experience
 
-| Best Practice | What the official docs lack |
-|---------------|----------------------------|
+| Practice | What it supplements |
+|----------|---------------------|
 | **Bilingual prompt template** | Ready-to-use EN+CN template with environment setup, teammate info, escalation guidance, and "If You Get Stuck" section. |
-| **Troubleshooting guide** | 13 solved problems with root cause analysis, bilingual (EN + CN). Covers: startup failures, race conditions, ghost agents, scope creep, and more. |
+| **Troubleshooting guide** | 13 solved problems with root cause analysis, bilingual (EN + CN). |
 
 ## Modes
 
@@ -338,9 +338,9 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for 13 solved problems with detaile
 - **质量门禁** — 通过 hooks 在队友完成任务时自动执行 lint、测试或覆盖率检查
 - **任务自行领取** — agent 完成当前任务后自动领取下一个匹配其角色的可用任务
 
-## 官方文档 vs 我们的创新
+## 与官方文档的关系
 
-本 skill 完整实现了 [Claude Code Agent Teams 官方文档](https://code.claude.com/docs/en/agent-teams) 中的指导意见，并在此基础上做了大量创新。
+本 skill 是 [Claude Code Agent Teams 官方文档](https://code.claude.com/docs/en/agent-teams) 的落地实现。我们以官方指导意见为基础，补充了实际使用中积累的实践经验。
 
 ### 已实现的官方功能
 
@@ -356,45 +356,45 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for 13 solved problems with detaile
 | 已知限制 | 8 条官方限制（agent 数量、上下文窗口、临时状态等） |
 | 功能开关 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` 环境变量 |
 
-### 我们的最佳实践与创新（超越官方文档）
+### 我们在实践中补充的内容
 
-官方文档提供的是**有哪些工具**（API 参考），但没有告诉你**怎么用好**。我们用实战验证过的最佳实践填补了这个空白：
+官方文档描述了可用的工具和 API。在实际使用中，我们发现以下模式有助于运行稳定、可预期的 agent 团队：
 
 #### 工作流与架构
 
-| 最佳实践 | 官方文档缺少什么 |
-|----------|-----------------|
-| **Subagent 模式** | 官方只描述 Team 模式。我们加了轻量替代方案——简单并行任务无需 TeamCreate/TaskCreate 开销，并提供选择决策框架。 |
-| **T0–T8 分步工作流** | 官方列出 API；我们提供完整的执行剧本：预检 → 建团队 → 启动 → 环境 → 监控 → 恢复 → 存档 → 汇总 → 关闭。 |
-| **用户许可规则** | 官方未提及用户同意。我们要求启动或关闭任何 agent 前必须征得用户同意。 |
-| **权限模式指南** | 官方列出模式但不推荐。我们对比 `auto`/`plan`/`dontAsk`/`default`/`bypassPermissions` 并给出建议：`auto` 为默认，`dontAsk` + worktree 最快。 |
+| 实践 | 补充了什么 |
+|------|-----------|
+| **Subagent 模式** | 简单并行任务的轻量替代方案——无需 TeamCreate/TaskCreate 开销。与官方 Team 模式互补。 |
+| **T0–T8 分步工作流** | 基于官方 API 构建的完整执行剧本：预检 → 建团队 → 启动 → 环境 → 监控 → 恢复 → 存档 → 汇总 → 关闭。 |
+| **用户许可规则** | 增加了确认环节：启动或关闭任何 agent 前征得用户同意。 |
+| **权限模式指南** | 对比 `auto`/`plan`/`dontAsk`/`default`/`bypassPermissions` 并给出实用建议。 |
 
 #### 可靠性与故障恢复
 
-| 最佳实践 | 官方文档缺少什么 |
-|----------|-----------------|
-| **自动错误恢复** | 官方无恢复协议。我们提供 3 级升级：`Agent(resume=id)` → 新 agent + 失败上下文 → 问用户。 |
-| **幽灵 agent 防护** | 官方未涉及替换安全。我们强制 5 步清理（保存工作 → 关闭旧 agent → 更新进度 → 处理 worktree → 再替换），防止同一任务两个 agent。 |
-| **"先检查存活"协议** | 官方未警告给死掉 agent 发消息的后果。我们要求始终先 `TaskOutput(block=false)` 再 `SendMessage`——防止无限等待。 |
-| **健康监控** | 官方提到 `TaskOutput` 但无监控策略。我们加了 `CronCreate` 每 3 分钟检查 + 卡住判定标准。 |
-| **进度持久化** | 官方未涉及崩溃恢复。我们加了 `.claude/teams/{name}/` 目录（`progress.md`、`history.log`、`results/`），新 agent 可接续之前的工作。 |
-| **结构化关闭协议** | 官方未描述关闭流程。我们提供正常关闭（汇总 → 存档 → 确认 → 优雅关闭 → 清理）和紧急关闭协议。 |
+| 实践 | 补充了什么 |
+|------|-----------|
+| **自动错误恢复** | 3 级升级：`Agent(resume=id)` → 新 agent + 失败上下文 → 问用户。 |
+| **幽灵 agent 防护** | 替换前强制 5 步清理——防止同一任务出现两个 agent。 |
+| **"先检查存活"协议** | 始终先 `TaskOutput(block=false)` 再 `SendMessage`——避免给死掉的 agent 发消息。 |
+| **健康监控** | 基于 `TaskOutput` 构建 `CronCreate` 每 3 分钟检查 + 卡住判定标准。 |
+| **进度持久化** | `.claude/teams/{name}/` 目录（`progress.md`、`history.log`、`results/`）用于崩溃恢复。 |
+| **结构化关闭协议** | 正常和紧急关闭协议，保证关闭前先存档。 |
 
 #### Agent 协调
 
-| 最佳实践 | 官方文档缺少什么 |
-|----------|-----------------|
-| **角色约束的自行领取** | 官方说"自行领取"但未防范越权。我们加了：只能领取匹配角色的任务 + 文件锁防竞争。 |
-| **Peer 通讯规则** | 官方提到 `SendMessage` 但未说明何时用。我们定义：事实性数据 → 直接发队友；范围变更 → 通过 lead。 |
-| **多 repo worktree 隔离** | 官方未提及多 repo。`isolation: "worktree"` 只覆盖启动 repo——我们为每个额外 repo 添加显式 worktree 配置。 |
-| **环境配置清单** | 官方提到子 agent 不继承环境，但未提供清单。我们列出所有必需配置：venv、环境变量、PATH、工作目录、构建命令、系统工具。 |
+| 实践 | 补充了什么 |
+|------|-----------|
+| **角色约束的自行领取** | 在官方自行领取机制基础上增加角色过滤和文件锁。 |
+| **Peer 通讯规则** | `SendMessage` 使用指南：事实性数据 → 直接发队友；范围变更 → 通过 lead。 |
+| **多 repo worktree 隔离** | 扩展 `isolation: "worktree"`，为额外 repo 添加显式 `git worktree` 配置。 |
+| **环境配置清单** | 子 agent 环境配置的具体清单：venv、环境变量、PATH、工作目录、构建命令、系统工具。 |
 
 #### 开发者体验
 
-| 最佳实践 | 官方文档缺少什么 |
-|----------|-----------------|
+| 实践 | 补充了什么 |
+|------|-----------|
 | **双语 prompt 模板** | 现成的中英文模板，包含环境配置、队友信息、升级指引和"卡住时怎么办"段落。 |
-| **问题排查指南** | 13 个已解决问题，含根因分析，中英双语。覆盖：启动失败、竞态条件、幽灵 agent、越权等。 |
+| **问题排查指南** | 13 个已解决问题，含根因分析，中英双语。 |
 
 ## 使用场景
 
