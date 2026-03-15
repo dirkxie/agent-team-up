@@ -2,6 +2,147 @@
 
 A skill for spawning and coordinating multi-agent teams for parallel work. Built for [Claude Code](https://claude.ai/code), designed to be agent-platform agnostic in the future.
 
+## How It Works
+
+```mermaid
+graph TB
+    User([👤 User])
+    Lead[🎯 Team Lead]
+
+    User -- "/team-up project" --> Lead
+
+    subgraph Parallel Execution
+        A1[🤖 Agent A<br/>Module A<br/><i>worktree: feat/a</i>]
+        A2[🤖 Agent B<br/>Module B<br/><i>worktree: feat/b</i>]
+        A3[🤖 Agent C<br/>Research<br/><i>no isolation</i>]
+    end
+
+    Lead -- "spawn + assign tasks" --> A1
+    Lead -- "spawn + assign tasks" --> A2
+    Lead -- "spawn + assign tasks" --> A3
+
+    A1 -. "SendMessage:<br/>API spec" .-> A2
+    A2 -. "SendMessage:<br/>interface ready" .-> A1
+
+    A1 -- "results + branch" --> Lead
+    A2 -- "results + branch" --> Lead
+    A3 -- "results" --> Lead
+
+    Lead -- "merge + summary" --> User
+
+    Health[⏰ Health Monitor<br/><i>every 3 min</i>]
+    Health -. "check status" .-> A1
+    Health -. "check status" .-> A2
+    Health -. "check status" .-> A3
+
+    Progress[(📁 Progress<br/>progress.md<br/>history.log)]
+    Lead -. "checkpoint" .-> Progress
+
+    style User fill:#f0f4ff,stroke:#4a6fa5
+    style Lead fill:#fff3e0,stroke:#e65100
+    style A1 fill:#e8f5e9,stroke:#2e7d32
+    style A2 fill:#e8f5e9,stroke:#2e7d32
+    style A3 fill:#e8f5e9,stroke:#2e7d32
+    style Health fill:#fce4ec,stroke:#c62828
+    style Progress fill:#f3e5f5,stroke:#6a1b9a
+```
+
+## Subagent Mode vs Team Mode
+
+<table>
+<tr><td>
+
+**Subagent Mode** — lightweight, spawn & collect
+
+```mermaid
+sequenceDiagram
+    participant U as 👤 User
+    participant L as 🎯 Lead
+    participant A as 🤖 Agent A
+    participant B as 🤖 Agent B
+
+    U->>L: "do X and Y in parallel"
+    L->>U: Show plan, ask permission
+    U->>L: ✅ Approved
+
+    par spawn all at once
+        L->>A: Agent(prompt, worktree)
+        L->>B: Agent(prompt, worktree)
+    end
+
+    Note over A: working independently...
+    Note over B: working independently...
+
+    A-->>L: ✅ done + branch
+    B-->>L: ✅ done + branch
+
+    L->>L: merge branches
+    L->>U: summary + merged result
+```
+
+</td><td>
+
+**Team Mode** — full orchestration
+
+```mermaid
+sequenceDiagram
+    participant U as 👤 User
+    participant L as 🎯 Lead
+    participant A as 🤖 Agent A
+    participant B as 🤖 Agent B
+
+    U->>L: "build feature X"
+    L->>L: TeamCreate + TaskCreate
+    L->>U: Show task table
+    U->>L: ✅ Approved
+
+    L->>A: spawn (task 1)
+    L->>B: spawn (task 2)
+
+    A->>B: SendMessage: API endpoint
+    B->>A: SendMessage: interface ready
+
+    Note over L: ⏰ health check every 3min
+
+    A-->>L: task 1 done
+    L->>L: checkpoint progress
+    B-->>L: task 2 done
+
+    L->>U: summary + merge checklist
+```
+
+</td></tr>
+</table>
+
+## Error Recovery Flow
+
+```mermaid
+flowchart LR
+    Stuck{{"🔍 Agent stuck?"}}
+    Check["TaskOutput<br/>(block=false)"]
+    Alive{Alive?}
+    Msg["SendMessage<br/>2min deadline"]
+    Response{Responded?}
+    Resume["Agent(resume=id)"]
+    New["New agent<br/>+ failure context"]
+    Ask["Ask user<br/>for help"]
+    OK(["✅ Recovered"])
+
+    Stuck --> Check --> Alive
+    Alive -- yes --> Msg --> Response
+    Alive -- no --> Resume
+    Response -- yes --> OK
+    Response -- no --> Resume
+    Resume -- success --> OK
+    Resume -- fail --> New
+    New -- success --> OK
+    New -- fail --> Ask
+
+    style Stuck fill:#fff3e0,stroke:#e65100
+    style OK fill:#e8f5e9,stroke:#2e7d32
+    style Ask fill:#fce4ec,stroke:#c62828
+```
+
 ## Features
 
 - **Two execution modes** — choose the right level of orchestration for your task
