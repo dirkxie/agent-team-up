@@ -360,15 +360,21 @@ Example hook in `.claude/settings.json`:
 ```json
 {
   "hooks": {
-    "TeammateIdle": {
-      "command": "cd $WORKTREE_PATH && npm test -- --bail",
-      "onFailure": "block"
-    }
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd $WORKTREE_PATH && npm test -- --bail"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-When `onFailure` is `"block"`, the teammate cannot proceed until the quality gate passes. This prevents broken code from propagating to dependent tasks.
+Exit codes control behavior: `0` = allow (task completes), `2` = block (task stays open, stderr sent as feedback to teammate). This prevents broken code from propagating to dependent tasks.
 
 ## T5: Error Recovery
 
