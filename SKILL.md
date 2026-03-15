@@ -28,7 +28,7 @@ Options:
 | **Task mgmt** | None — task is in the prompt | Full — TaskCreate with dependencies, TaskUpdate for status |
 | **Monitoring** | Automatic notifications when done | CronCreate health checks + TaskOutput + SendMessage |
 | **Progress** | Not needed (short-lived) | `.claude/teams/{name}/` with checkpoints |
-| **Requires** | Nothing extra | tmux (recommended), `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag |
+| **Requires** | Nothing extra | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag |
 
 **Default to Subagent mode** unless the task clearly needs inter-agent coordination or has complex dependencies.
 
@@ -146,14 +146,14 @@ Full orchestration for complex, coordinated work. Use when agents need to commun
 
 ### tmux Check
 
-Team mode sessions are long-running. Check if inside tmux first:
+Team mode sessions are long-running. tmux serves two purposes: **session persistence** (protects against SSH timeout, laptop sleep) and **split-pane display** (see [Display Mode](#display-mode-teammatemode) below). Check if inside tmux first:
 
 ```bash
 echo $TMUX
 ```
 
-- **If `$TMUX` is set** → proceed.
-- **If empty** → warn the user: tmux protects against terminal disconnects (SSH timeout, laptop sleep). Suggest starting tmux first, but let the user choose to continue without it.
+- **If `$TMUX` is set** → proceed. Split-pane display is available.
+- **If empty** → warn the user: tmux protects against terminal disconnects and enables split-pane teammate display. Suggest starting tmux first, but let the user choose to continue without it (in-process display still works).
 
 ### Feature Flag
 
@@ -175,6 +175,40 @@ If not found, guide the user to add it to `~/.claude/settings.json` under `"env"
 
 Then restart Claude Code.
 
+### Display Mode (teammateMode)
+
+How teammates appear on screen is controlled by the **display mode** (`teammateMode`), separate from how they are launched:
+
+| Display Mode | How teammates appear | Requires tmux? |
+|---|---|---|
+| **Split-pane** (default when tmux detected) | Each teammate gets its own tmux pane. You can see all agents working simultaneously. | Yes |
+| **In-process** (default when no tmux) | Teammates run inside the lead's process. Output interleaved in the same terminal. | No |
+
+The skill auto-selects: if `$TMUX` is set, split-pane is used; otherwise, in-process. To override, configure in `~/.claude/settings.json`:
+
+```json
+{
+  "teammateMode": "in-process"
+}
+```
+
+Or pass via CLI flag: `claude --teammate-mode in-process`
+
+**Important distinction**: The `Agent()` tool **launches** teammates. `teammateMode` only controls **display**. You always launch via `Agent()` — never via tmux commands.
+
+#### Direct Teammate Interaction (split-pane mode)
+
+In split-pane mode, you can interact directly with teammates in their panes:
+
+| Shortcut | Action |
+|----------|--------|
+| `Shift+Down` | Focus the next teammate pane |
+| `Enter` | Start typing in the focused teammate's pane |
+| `Escape` | Return focus to the lead pane |
+| `Ctrl+T` | Toggle teammate pane visibility |
+
+You can also click directly on a teammate's tmux pane to interact with it.
+
 ## T1: Create Team & Tasks
 
 **Order matters: team first, then tasks, then agents.**
@@ -183,7 +217,7 @@ Then restart Claude Code.
 1. TeamCreate  →  Initialize team and task list
 2. mkdir -p .claude/teams/{team_name}/results  →  Create progress directory
 3. TaskCreate  →  Break down work, set dependencies (addBlockedBy)
-4. TaskUpdate  →  Assign task owners BEFORE spawning agents
+4. TaskUpdate  →  (Optional) Pre-assign task owners
 5. Agent spawn →  Start agents (each prompt includes its task ID)
 ```
 
@@ -207,9 +241,17 @@ Task breakdown principles:
 
 Get user confirmation before spawning any agents.
 
+### Task Claiming
+
+The lead can pre-assign tasks before spawning, but agents also **self-claim** tasks after completing their initial assignment:
+
+- **Lead pre-assigns**: Use `TaskUpdate(owner=...)` for initial tasks before spawning — prevents the startup race condition where an agent can't find its task.
+- **Agent self-claims**: After completing a task, agents pick up the next unassigned, unblocked task that matches their role. Agents use file locking (`/tmp/.task-claim-{taskId}.lock`) to prevent two agents from claiming the same task.
+- **Role constraint**: Agents only self-claim tasks within their expertise (e.g., a frontend agent won't claim a backend task). If no matching tasks remain, the agent notifies the lead and waits.
+
 ## T2: Spawn Agents
 
-**Assign tasks BEFORE spawning agents.** Call `TaskUpdate(taskId=..., owner="agent-name")` first, then spawn. This prevents a race condition where the agent starts but can't find its task. Always include the assigned task ID in the agent's prompt.
+**Pre-assign initial tasks before spawning agents.** Call `TaskUpdate(taskId=..., owner="agent-name")` for the first task per agent, then spawn. This prevents a race condition where the agent starts but can't find its task. Always include the assigned task ID in the agent's prompt. After completing their initial task, agents self-claim additional matching tasks.
 
 **Ask the user before spawning.** Confirm which agents to start, their permission mode ([see reference](#permission-mode-reference)), and configuration.
 
@@ -293,6 +335,7 @@ Delete the cron job when done (`CronDelete`).
    - Returns output → agent finished or is idle
    - Timeout → agent is still working
 3. **SendMessage** to a specific agent — alive agents will respond
+4. **Direct interaction** (split-pane mode only) — use `Shift+Down` to focus a teammate's pane, or click on it directly. Useful for quick checks or manual intervention.
 
 ### Detecting Stuck Agents
 
@@ -302,6 +345,30 @@ An agent is likely stuck if:
 - No response to SendMessage after a reasonable wait
 
 When detected → proceed to Error Recovery (T5).
+
+### Quality Gates with Hooks
+
+Use Claude Code hooks to enforce quality checks when teammates finish tasks or go idle:
+
+| Hook Event | When it fires | Use case |
+|---|---|---|
+| `TeammateIdle` | A teammate finishes its current turn and goes idle | Run linting, type checks, or test suites against the teammate's changes |
+| `TaskCompleted` | A task is marked as completed via `TaskUpdate(status="completed")` | Run integration tests, coverage checks, or notify reviewers |
+
+Example hook in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "TeammateIdle": {
+      "command": "cd $WORKTREE_PATH && npm test -- --bail",
+      "onFailure": "block"
+    }
+  }
+}
+```
+
+When `onFailure` is `"block"`, the teammate cannot proceed until the quality gate passes. This prevents broken code from propagating to dependent tasks.
 
 ## T5: Error Recovery
 
@@ -454,11 +521,24 @@ Dead agents during shutdown: check `TaskOutput(block=false)`, log and move on. C
 - **Plain text is invisible to teammates.** You MUST use SendMessage. *(Team mode only)*
 - **Do not broadcast casually.** `type: "broadcast"` sends N messages. Default to specific recipients. *(Team mode only)*
 - **Include context in replies.** Teammates may have lost context due to compression. Repeat key details.
-- **Agents must stay in scope.** Architect shouldn't code; frontend agent shouldn't fix backend. Finished → report to lead and stop.
+- **Agents must stay in scope.** Architect shouldn't code; frontend agent shouldn't fix backend. Finished → self-claim next task within role, or report to lead and stop if none match.
 - **Agents don't share memory.** Each has its own context window. In Team mode, agents can message each other for factual handoffs. In Subagent mode, only the lead sees all results.
 - **Peer messaging is for data, not decisions.** "The API endpoint is /api/v1/users" → direct. Scope changes → through the lead. *(Team mode only)*
 - **Ask teammates before searching.** A quick SendMessage beats a 5-minute codebase search. *(Team mode only)*
 - **Worktree cleanup matters.** Dead agents leave worktrees. `git worktree list` → `git worktree remove <path>`.
+
+## Known Limitations
+
+These are official limitations of the agent teams feature:
+
+1. **No shared filesystem awareness** — teammates don't see each other's uncommitted changes, even in the same worktree. Coordinate via commits and messages.
+2. **Context window is per-agent** — each teammate has its own context window. Long-running agents will hit compression. Critical info should be in files, not just in conversation.
+3. **No automatic conflict resolution** — if two agents modify the same file in different worktrees, merge conflicts must be resolved manually by the lead.
+4. **Agent count limits** — performance degrades beyond ~5-7 concurrent agents. The lead's context fills with status messages and the host machine's resources are shared.
+5. **No persistent agent identity** — a resumed agent gets its old context, but a replacement agent is a fresh process. Include all necessary context in replacement prompts.
+6. **Hooks are per-session** — hooks configured for the lead's session don't automatically apply to teammates unless they're in the shared settings file.
+7. **Split-pane display requires tmux** — in-process mode works without tmux, but you lose the ability to visually monitor individual agents.
+8. **Team state is ephemeral** — `TeamCreate`/`TaskCreate` state lives in memory. If Claude Code restarts, the team is gone. Use progress checkpointing (T6) to survive restarts.
 
 ## Quick Reference
 
@@ -490,7 +570,7 @@ TaskCreate(subject="Module B", description="...")  # → id: 2
 TaskCreate(subject="Integration test", description="...")  # → id: 3
 TaskUpdate(taskId="3", addBlockedBy=["1", "2"])
 
-# 3. Assign BEFORE spawning
+# 3. Pre-assign initial tasks (agents self-claim remaining tasks after)
 TaskUpdate(taskId="1", owner="agent-a")
 TaskUpdate(taskId="2", owner="agent-b")
 

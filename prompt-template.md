@@ -83,8 +83,8 @@ cd {working_directory}
      测试结果（通过/失败，性能数据如有）
    - Commit hash and branch name / Commit hash 和分支名
    - Any issues or concerns / 任何问题或顾虑
-7. STOP and wait for the lead to assign your next task. Do NOT self-assign from TaskList.
-   停下并等待 lead 分配下一个任务。不要自己从 TaskList 领取。
+7. Pick up the next unassigned, unblocked task from TaskList that matches your role. If none remain, notify the lead and wait.
+   从 TaskList 中领取下一个未分配、未阻塞且匹配你角色的任务。如果没有剩余匹配任务，通知 lead 并等待。
 
 ## If You Get Stuck / 如果卡住了
 - Do NOT silently spin. If you're blocked for any reason:
@@ -104,9 +104,11 @@ cd {working_directory}
   If you finish and think something else should be done, report it to the lead —
   do NOT start doing it yourself. The lead decides task assignments.
   如果你完成后觉得还需要做别的事，向 lead 汇报——不要自己开始做。Lead 决定任务分配。
-- **After completing your task, notify the lead and STOP.** Do not pick up new tasks
-  from TaskList on your own — wait for the lead to assign your next task.
-  **完成任务后通知 lead 并停下。** 不要自己从 TaskList 领取新任务——等 lead 分配。
+- **After completing your task, self-claim the next available task matching your role.**
+  Check TaskList for unassigned, unblocked tasks within your expertise. If no matching tasks
+  remain, notify the lead and wait.
+  **完成任务后，自行领取下一个匹配你角色的可用任务。**
+  从 TaskList 中查找未分配、未阻塞且在你专长范围内的任务。如果没有匹配任务，通知 lead 并等待。
 - You must use EnterPlanMode and get lead approval before modifying code
   修改代码前必须用 EnterPlanMode 并获得 lead 批准
   (unless you were spawned with mode: "auto")

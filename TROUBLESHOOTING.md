@@ -26,13 +26,23 @@ Skill 从多个层面解决了 agent 启动失败的问题：
 
 ## Problem 2: Member agents fail to display in separate tmux panes / Agent 无法在 tmux pane 中显示
 
-**Status: Solved (bypassed) / 已解决（绕过）**
+**Status: Solved / 已解决**
 
-The skill no longer uses tmux at all. SKILL.md Step 2 explicitly states: *"Do NOT use tmux to launch agents."* Agents are spawned via the `Agent()` tool with `run_in_background: true`, and coordinated through `SendMessage`, `TaskList`, and `TaskOutput` — no tmux panes needed.
+**Important distinction**: tmux is NOT used to **launch** agents — agents are always spawned via the `Agent()` tool. However, tmux IS used for **display** when `teammateMode` is set to `split-pane` (the default when tmux is detected).
+
+- **Launching**: Always use `Agent()` with `run_in_background: true`. Never use tmux to start agents. SKILL.md T2 explicitly states: *"Do NOT use tmux to launch agents."*
+- **Display**: If `$TMUX` is set, split-pane mode gives each teammate its own tmux pane automatically. If not in tmux, in-process mode is used (output interleaved in the same terminal).
+
+If agents don't appear in split panes, check: (1) you're inside a tmux session, (2) `teammateMode` isn't overridden to `"in-process"` in settings.
 
 ---
 
-Skill 不再使用 tmux。SKILL.md Step 2 明确规定：*"不要用 tmux 启动 agent。"* Agent 通过 `Agent()` 工具以后台模式启动，通过 `SendMessage`、`TaskList`、`TaskOutput` 协调——完全不需要 tmux pane。
+**重要区分**：tmux 不用于**启动** agent——agent 始终通过 `Agent()` 工具启动。但 tmux 用于**显示**：当 `teammateMode` 设为 `split-pane`（在 tmux 中时默认）时，每个队友自动获得独立的 tmux pane。
+
+- **启动**：始终用 `Agent()` + `run_in_background: true`。永远不要用 tmux 启动 agent。
+- **显示**：在 tmux 中时，分屏模式自动为每个队友分配独立 pane。不在 tmux 中时使用进程内模式（输出交错在同一终端）。
+
+如果 agent 没有出现在分屏中，检查：(1) 是否在 tmux 会话中，(2) settings 中 `teammateMode` 是否被覆盖为 `"in-process"`。
 
 ---
 
@@ -266,18 +276,26 @@ A mandatory 5-step cleanup sequence before any replacement:
 
 **Status: Fixed / 已修复**
 
-**Root cause**: The prompt template told agents to check `TaskList` for the next task — agents would self-assign work outside their role.
+**Root cause**: The original prompt template told agents to check `TaskList` for the next task without any role constraint — agents would self-assign work outside their expertise.
 
-**Fix**:
-1. New scope rules: *"Stay within your assigned task scope. After completing, notify the lead and STOP."*
-2. Workflow step 7 changed to: "STOP and wait for lead to assign your next task"
-3. SKILL.md gotcha: *"Agents must stay in scope"*
+**Fix**: Self-claiming tasks is now the official behavior (matching the Claude Code agent teams API), but with a **role constraint**:
+
+1. After completing a task, agents self-claim the next **unassigned, unblocked task that matches their role**
+2. Agents use file locking to prevent two agents from claiming the same task
+3. If no matching tasks remain, the agent notifies the lead and waits
+4. Agents must NOT claim tasks outside their expertise (e.g., a frontend agent won't claim a backend task)
+5. SKILL.md gotcha: *"Agents must stay in scope — self-claim next task within role, or report to lead and stop if none match"*
 
 ---
 
-**根因**：模板让 agent 去 `TaskList` 找下一个任务——agent 自行领取超出范围的工作。
+**根因**：原始模板让 agent 从 `TaskList` 找下一个任务但没有角色约束——agent 自行领取超出其专长范围的工作。
 
-**修复**：完成任务后通知 lead 并停下，不要自己领取新任务。
+**修复**：自行领取任务现在是官方行为（与 Claude Code agent teams API 一致），但增加了**角色约束**：
+
+1. 完成任务后，agent 自行领取下一个**未分配、未阻塞且匹配其角色的任务**
+2. Agent 使用文件锁防止两个 agent 领取同一任务
+3. 如果没有匹配的任务，agent 通知 lead 并等待
+4. Agent 不得领取超出其专长的任务（如前端 agent 不领取后端任务）
 
 ---
 

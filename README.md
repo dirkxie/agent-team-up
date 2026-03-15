@@ -156,6 +156,9 @@ flowchart LR
 - **Auto error recovery** — resume → retry with context → escalate to user
 - **Peer messaging** — agents exchange data directly, decisions go through the lead
 - **Ghost agent prevention** — mandatory cleanup before spawning replacements
+- **Display modes** — split-pane (default with tmux) or in-process, with direct teammate interaction via keyboard shortcuts
+- **Quality gate hooks** — enforce linting, tests, or coverage checks when teammates finish tasks
+- **Self-claiming tasks** — agents autonomously pick up the next matching task after completing their assignment
 
 ## Modes
 
@@ -239,10 +242,12 @@ Agent(name="agent-a", team_name="proj-x", isolation="worktree",
 ## Key Principles
 
 - **User permission required** — never spawn or shut down agents without explicit approval
-- **Assign tasks before spawning** — prevents race conditions
+- **Pre-assign initial tasks before spawning** — prevents race conditions on startup
 - **Environment setup is explicit** — child agents don't inherit the parent's environment
-- **Agents stay in scope** — finished agents report to lead and stop, they don't self-assign
+- **Agents self-claim within role** — finished agents pick up the next unassigned, unblocked task matching their role; if none remain, they report to lead and stop
+- **Quality gates via hooks** — enforce automated checks (tests, linting) when teammates complete tasks
 - **Check alive before messaging** — don't send messages to dead agents
+- **Known limitations** — be aware of agent count limits, per-agent context windows, and ephemeral team state
 
 ## Troubleshooting
 
@@ -263,6 +268,9 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for 13 solved problems with detaile
 - **自动错误恢复** — resume → 带上下文重试 → 升级到用户
 - **Peer 通讯** — agent 之间直接交换数据，决策通过 lead
 - **幽灵 agent 防护** — 替换前强制清理旧 agent
+- **显示模式** — 分屏（tmux 下默认）或进程内，支持键盘快捷键直接与队友交互
+- **质量门禁** — 通过 hooks 在队友完成任务时自动执行 lint、测试或覆盖率检查
+- **任务自行领取** — agent 完成当前任务后自动领取下一个匹配其角色的可用任务
 
 ## 使用场景
 
