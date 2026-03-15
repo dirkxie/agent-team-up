@@ -2,6 +2,10 @@
 
 A skill for spawning and coordinating multi-agent teams for parallel work. Built for [Claude Code](https://claude.ai/code), designed to be agent-platform agnostic in the future.
 
+<p align="center">
+  <img src="assets/agent-team-up.gif" alt="agent-team-up animation" width="700"/>
+</p>
+
 ## How It Works
 
 ```mermaid
